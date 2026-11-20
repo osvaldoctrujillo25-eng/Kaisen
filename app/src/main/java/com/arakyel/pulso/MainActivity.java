@@ -1,8 +1,11 @@
 package com.arakyel.pulso;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,7 +41,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Contenedor de la app web Kaisen (改善) (app/src/main/assets/index.html).
+ * Contenedor de la app web Kaizen (改善) (app/src/main/assets/index.html).
  * Los datos se guardan en el almacenamiento local del WebView, dentro del teléfono.
  */
 public class MainActivity extends Activity {
@@ -47,6 +50,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://" + HOST + "/assets/index.html";
     private static final int REQ_OPEN_FILE = 1001;
     private static final int REQ_SAVE_FILE = 1002;
+    private static final int REQ_NOTIF = 1003;
 
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
@@ -115,10 +119,13 @@ public class MainActivity extends Activity {
 
         web.addJavascriptInterface(new Bridge(), "AndroidBridge");
 
-        if (savedInstanceState != null) {
+        ReminderReceiver.ensureChannel(this);
+        ReminderStore.rescheduleAll(this);
+        String go = getIntent() != null ? getIntent().getStringExtra("goto") : null;
+        if (savedInstanceState != null && go == null) {
             web.restoreState(savedInstanceState);
         } else {
-            web.loadUrl(START_URL);
+            web.loadUrl(go != null ? START_URL + "#" + go : START_URL);
         }
     }
 
@@ -145,6 +152,42 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void googleSignIn(final String webClientId) {
             runOnUiThread(() -> startGoogleSignIn(webClientId));
+        }
+
+        @JavascriptInterface
+        public void scheduleReminder(int code, long when, String title, String text) {
+            ReminderStore.put(MainActivity.this, code, when, title, text);
+            ReminderReceiver.schedule(MainActivity.this, code, when, title, text);
+        }
+
+        @JavascriptInterface
+        public void cancelReminder(int code) {
+            ReminderStore.remove(MainActivity.this, code);
+            ReminderReceiver.cancel(MainActivity.this, code);
+        }
+
+        @JavascriptInterface
+        public boolean notifEnabled() {
+            return notificationsAllowed();
+        }
+
+        @JavascriptInterface
+        public void requestNotif() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33
+                        && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
+                } else if (!notificationsAllowed()) {
+                    try {
+                        Intent i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                        i.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName());
+                        startActivity(i);
+                    } catch (Exception ignored) {
+                    }
+                } else {
+                    notifyPermission(true);
+                }
+            });
         }
 
         @JavascriptInterface
@@ -250,6 +293,35 @@ public class MainActivity extends Activity {
             pendingExport = null;
             notifySave(ok);
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String go = intent != null ? intent.getStringExtra("goto") : null;
+        if (go != null && web != null) {
+            web.evaluateJavascript("window.go&&go(" + JSONObject.quote(go) + ")", null);
+        }
+    }
+
+    private boolean notificationsAllowed() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        return nm == null || nm.areNotificationsEnabled();
+    }
+
+    private void notifyPermission(boolean ok) {
+        if (web != null) web.evaluateJavascript("window.onNotifPermission&&window.onNotifPermission(" + ok + ")", null);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_NOTIF) notifyPermission(notificationsAllowed());
     }
 
     @Override

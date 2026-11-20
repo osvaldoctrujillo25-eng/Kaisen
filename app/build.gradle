@@ -10,8 +10,8 @@ android {
         applicationId 'com.arakyel.pulso'
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName '1.2'
+        versionCode 6
+        versionName '1.5'
     }
 
     // Llave fija: el SHA-1 no cambia entre compilaciones (necesario para iniciar sesión con Google).
