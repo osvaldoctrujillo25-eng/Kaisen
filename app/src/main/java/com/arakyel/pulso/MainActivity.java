@@ -321,7 +321,32 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_NOTIF) notifyPermission(notificationsAllowed());
+        if (requestCode == REQ_NOTIF) {
+            boolean ok = notificationsAllowed();
+            // Si Android ya no muestra el diálogo (se negó antes), abre los ajustes de notificaciones de la app
+            if (!ok && Build.VERSION.SDK_INT >= 33
+                    && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                openNotifSettings();
+                return;
+            }
+            notifyPermission(ok);
+        }
+    }
+
+    private void openNotifSettings() {
+        try {
+            Intent i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            i.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName());
+            startActivity(i);
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Al volver de los ajustes del teléfono, la app se entera si ahora hay permiso
+        if (web != null) web.evaluateJavascript("window.onAppResume&&window.onAppResume()", null);
     }
 
     @Override
