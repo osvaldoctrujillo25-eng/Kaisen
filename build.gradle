@@ -1,3 +1,48 @@
 plugins {
-    id 'com.android.application' version '8.5.2' apply false
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.arakyel.pulso'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.arakyel.pulso'
+        minSdk 26
+        targetSdk 34
+        versionCode 7
+        versionName '1.6'
+    }
+
+    // Llave fija: el SHA-1 no cambia entre compilaciones (necesario para iniciar sesión con Google).
+    signingConfigs {
+        pulso {
+            storeFile file('pulso.keystore')
+            storePassword 'pulso1234'
+            keyAlias 'pulso'
+            keyPassword 'pulso1234'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.pulso
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.pulso
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.credentials:credentials:1.3.0'
+    implementation 'androidx.credentials:credentials-play-services-auth:1.3.0'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'
 }
