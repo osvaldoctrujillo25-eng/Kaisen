@@ -167,6 +167,16 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void updateWidgets(String json) {
+            WidgetData.setFromApp(MainActivity.this, json);
+        }
+
+        @JavascriptInterface
+        public String takeWidgetPending() {
+            return WidgetData.takePending(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public boolean notifEnabled() {
             return notificationsAllowed();
         }

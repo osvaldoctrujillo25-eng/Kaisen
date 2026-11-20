@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kaizen</string>
+    <string name="widget_water_desc">Agua de hoy y botones para sumar</string>
+    <string name="widget_meal_desc">Desayuno, almuerzo y cena de hoy</string>
 </resources>
